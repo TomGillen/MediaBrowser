@@ -181,6 +181,7 @@
     <Compile Include="Providers\IForcedProvider.cs" />
     <Compile Include="Providers\IHasChangeMonitor.cs" />
     <Compile Include="Entities\IHasMetadata.cs" />
+    <Compile Include="Providers\ItemIdentities.cs" />
     <Compile Include="Providers\IImageProvider.cs" />
     <Compile Include="Providers\IImageSaver.cs" />
     <Compile Include="Providers\ILocalMetadataProvider.cs" />

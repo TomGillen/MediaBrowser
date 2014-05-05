@@ -699,7 +699,11 @@ namespace MediaBrowser.ServerApplication
                                     GetExports<IBaseItemComparer>(),
                                     GetExports<ILibraryPostScanTask>());
 
-            ProviderManager.AddParts(GetExports<IImageProvider>(), GetExports<IMetadataService>(), GetExports<IMetadataProvider>(),
+            ProviderManager.AddParts(GetExports<IImageProvider>(),
+                                    GetExports<IMetadataService>(),
+                                    GetExports<IItemIdentityProvider>(),
+                                    GetExports<IItemIdentityConverter>(),
+                                    GetExports<IMetadataProvider>(),
                                     GetExports<IMetadataSaver>(),
                                     GetExports<IImageSaver>(),
                                     GetExports<IExternalId>());
