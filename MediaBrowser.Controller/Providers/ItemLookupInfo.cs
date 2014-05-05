@@ -99,8 +99,10 @@ namespace MediaBrowser.Controller.Providers
         public string Path { get; set; }
     }
 
-    public class EpisodeInfo : ItemLookupInfo
+    public class EpisodeInfo : ItemLookupInfo, IHasIdentities<EpisodeIdentity>
     {
+        private List<EpisodeIdentity> _identities = new List<EpisodeIdentity>();
+
         public Dictionary<string, string> SeriesProviderIds { get; set; }
 
         public int? IndexNumberEnd { get; set; }
@@ -110,6 +112,24 @@ namespace MediaBrowser.Controller.Providers
         {
             SeriesProviderIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
+
+        public IEnumerable<EpisodeIdentity> Identities { get { return _identities; } }
+
+        public async Task FindIdentities(IProviderManager providerManager, CancellationToken cancellationToken)
+        {
+            var identifier = new ItemIdentifier<EpisodeInfo, EpisodeIdentity>();
+            _identities = (await identifier.FindIdentities(this, providerManager, cancellationToken)).ToList();
+        }
+    }
+
+    public class EpisodeIdentity : IItemIdentity
+    {
+        public string Type { get; set; }
+
+        public string SeriesId { get; set; }
+        public int? SeasonIndex { get; set; }
+        public int IndexNumber { get; set; }
+        public int? IndexNumberEnd { get; set; }
     }
 
     public class SongInfo : ItemLookupInfo
@@ -119,9 +139,25 @@ namespace MediaBrowser.Controller.Providers
         public List<string> Artists { get; set; }
     }
 
-    public class SeriesInfo : ItemLookupInfo
+    public class SeriesInfo : ItemLookupInfo, IHasIdentities<SeriesIdentity>
     {
+        private List<SeriesIdentity> _identities = new List<SeriesIdentity>();
+
         public int? AnimeSeriesIndex { get; set; }
+        public IEnumerable<SeriesIdentity> Identities { get { return _identities; } }
+
+        public async Task FindIdentities(IProviderManager providerManager, CancellationToken cancellationToken)
+        {
+            var identifier = new ItemIdentifier<SeriesInfo, SeriesIdentity>();
+            _identities = (await identifier.FindIdentities(this, providerManager, cancellationToken)).ToList();
+        }
+    }
+
+    public class SeriesIdentity : IItemIdentity
+    {
+        public string Type { get; set; }
+
+        public string Id { get; set; }
     }
 
     public class PersonLookupInfo : ItemLookupInfo
@@ -154,8 +190,10 @@ namespace MediaBrowser.Controller.Providers
         public string SeriesName { get; set; }
     }
 
-    public class SeasonInfo : ItemLookupInfo
+    public class SeasonInfo : ItemLookupInfo, IHasIdentities<SeasonIdentity>
     {
+        private List<SeasonIdentity> _identities = new List<SeasonIdentity>();
+
         public Dictionary<string, string> SeriesProviderIds { get; set; }
         public int? AnimeSeriesIndex { get; set; }
 
@@ -163,5 +201,22 @@ namespace MediaBrowser.Controller.Providers
         {
             SeriesProviderIds = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
+
+        public IEnumerable<SeasonIdentity> Identities { get { return _identities; } }
+
+        public async Task FindIdentities(IProviderManager providerManager, CancellationToken cancellationToken)
+        {
+            var identifier = new ItemIdentifier<SeasonInfo, SeasonIdentity>();
+            _identities = (await identifier.FindIdentities(this, providerManager, cancellationToken)).ToList();
+        }
+    }
+
+    public class SeasonIdentity : IItemIdentity
+    {
+        public string Type { get; set; }
+
+        public string SeriesId { get; set; }
+
+        public int SeasonIndex { get; set; }
     }
 }
