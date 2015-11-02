@@ -1,4 +1,5 @@
-﻿using MediaBrowser.Common.Configuration;
+﻿using System.IO;
+using MediaBrowser.Common.Configuration;
 using MediaBrowser.Common.Net;
 using MediaBrowser.Common.Security;
 using MediaBrowser.Model.Entities;
@@ -7,8 +8,10 @@ using MediaBrowser.Model.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using MediaBrowser.Model.Net;
 
 namespace MediaBrowser.Common.Implementations.Security
 {
@@ -18,6 +21,7 @@ namespace MediaBrowser.Common.Implementations.Security
     public class PluginSecurityManager : ISecurityManager
     {
         private const string MBValidateUrl = MbAdmin.HttpsUrl + "service/registration/validate";
+        private const string AppstoreRegUrl = /*MbAdmin.HttpsUrl*/ "http://mb3admin.com/admin/" + "service/appstore/register";
 
         /// <summary>
         /// The _is MB supporter
@@ -158,9 +162,14 @@ namespace MediaBrowser.Common.Implementations.Security
                 return new SupporterInfo();
             }
 
-            var url = MbAdmin.HttpsUrl + "/service/supporter/retrieve?key=" + key;
+            var data = new Dictionary<string, string>
+                {
+                    { "key", key }, 
+                };
 
-            using (var stream = await _httpClient.Get(url, CancellationToken.None).ConfigureAwait(false))
+            var url = MbAdmin.HttpsUrl + "/service/supporter/retrieve";
+
+            using (var stream = await _httpClient.Post(url, data, CancellationToken.None).ConfigureAwait(false))
             {
                 var response = _jsonSerializer.DeserializeFromStream<SuppporterInfoResponse>(stream);
 
@@ -177,6 +186,80 @@ namespace MediaBrowser.Common.Implementations.Security
                 info.IsExpiredSupporter = info.ExpirationDate.HasValue && info.ExpirationDate < DateTime.UtcNow && !string.IsNullOrWhiteSpace(info.SupporterKey);
 
                 return info;
+            }
+        }
+
+        /// <summary>
+        /// Register an app store sale with our back-end.  It will validate the transaction with the store
+        /// and then register the proper feature and then fill in the supporter key on success.
+        /// </summary>
+        /// <param name="parameters">Json parameters to send to admin server</param>
+        public async Task RegisterAppStoreSale(string parameters)
+        {
+            var options = new HttpRequestOptions()
+            {
+                Url = AppstoreRegUrl,
+                CancellationToken = CancellationToken.None
+            };
+            options.RequestHeaders.Add("X-Emby-Token", _appHost.SystemId);
+            options.RequestContent = parameters;
+            options.RequestContentType = "application/json";
+
+            try
+            {
+                using (var response = await _httpClient.Post(options).ConfigureAwait(false))
+                {
+                    var reg = _jsonSerializer.DeserializeFromStream<RegRecord>(response.Content);
+
+                    if (reg == null)
+                    {
+                        var msg = "Result from appstore registration was null.";
+                        _logger.Error(msg);
+                        throw new ApplicationException(msg);
+                    }
+                    if (!String.IsNullOrEmpty(reg.key))
+                    {
+                        SupporterKey = reg.key;
+                    }
+                }
+
+            }
+            catch (ApplicationException)
+            {
+                SaveAppStoreInfo(parameters);
+                throw;
+            }
+            catch (HttpException e)
+            {
+                _logger.ErrorException("Error registering appstore purchase {0}", e, parameters ?? "NO PARMS SENT");
+
+                if (e.StatusCode.HasValue && e.StatusCode.Value == HttpStatusCode.PaymentRequired)
+                {
+                    throw new PaymentRequiredException();
+                }
+                throw new ApplicationException("Error registering store sale");
+            }
+            catch (Exception e)
+            {
+                _logger.ErrorException("Error registering appstore purchase {0}", e, parameters ?? "NO PARMS SENT");
+                SaveAppStoreInfo(parameters);
+                //TODO - could create a re-try routine on start-up if this file is there.  For now we can handle manually.
+                throw new ApplicationException("Error registering store sale");
+            }
+
+        }
+
+        private void SaveAppStoreInfo(string info)
+        {
+            // Save all transaction information to a file
+
+            try
+            {
+                File.WriteAllText(Path.Combine(_appPaths.ProgramDataPath, "apptrans-error.txt"), info);
+            }
+            catch (IOException)
+            {
+
             }
         }
 
